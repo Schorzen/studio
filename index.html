@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vocal Booth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: calm, focused, a booth you sing in, not a toy
+   IDEA: the vocal booth with its red ON AIR light and a mixing-desk channel strip
+   PICTURE: the big record button with live level meter and take clock
+   COLOUR and TYPE: deep plum-ink booth, warm off-white, one red ON AIR accent; Archivo + Inter
+   LAYOUT: one column on phones; booth on top, then backing track, lyrics, takes */
+:root{color-scheme:light dark;
+--bg:light-dark(#f4f1ee,#151218);--panel:light-dark(#ffffff,#201b25);--line:light-dark(#e2dcd6,#332b3a);
+--ink:light-dark(#1d1820,#f3eee9);--mute:light-dark(#6c6370,#a99fae);--red:#e8323f;--ok:#2fb36d;--warn:#e6a92a}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2{font-family:Archivo,Inter,sans-serif;line-height:1.05;margin:0}
+h1{font-size:clamp(30px,6vw,44px);font-weight:800}
+h2{font-size:20px;font-weight:700;margin-bottom:12px}
+.wrap{max-width:760px;margin:0 auto;padding:20px 16px 60px}
+header{display:flex;align-items:center;gap:14px;justify-content:space-between;flex-wrap:wrap;margin-bottom:18px}
+.onair{font:700 13px Archivo,sans-serif;padding:6px 12px;border-radius:6px;border:2px solid var(--line);color:var(--mute);transition:.2s}
+.onair.live{background:var(--red);border-color:var(--red);color:#fff;box-shadow:0 0 24px #e8323f88}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px}
+.booth{display:grid;grid-template-columns:auto minmax(0,1fr);gap:20px;align-items:center}
+@media(max-width:560px){.booth{grid-template-columns:minmax(0,1fr);justify-items:center;text-align:center}}
+.rec{width:150px;height:150px;border-radius:50%;border:8px solid var(--line);background:radial-gradient(circle at 35% 30%,#ff6b75,var(--red) 60%,#a51d28);color:#fff;font:800 20px Archivo,sans-serif;cursor:pointer;box-shadow:0 10px 30px #0004,inset 0 -6px 12px #0003}
+.rec:disabled{filter:grayscale(1);opacity:.5;cursor:not-allowed}
+.rec.on{animation:pulse 1.2s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 14px #e8323f33,0 10px 30px #0004}}
+@media(prefers-reduced-motion:reduce){.rec.on{animation:none}}
+.clock{font:700 clamp(40px,10vw,56px)/1 Archivo,sans-serif;font-variant-numeric:tabular-nums}
+.meter{height:18px;border-radius:9px;background:var(--line);overflow:hidden;position:relative;margin:12px 0 6px}
+.meter i{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--ok) 0 70%,var(--warn) 70% 88%,var(--red) 88%);transition:width .05s}
+.small{font-size:14px;color:var(--mute)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px}
+button,select,.btn{font:600 15px Inter,sans-serif;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button:focus-visible,select:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--red);outline-offset:2px}
+select{font-size:16px;max-width:100%}
+input[type=range]{flex:1;min-width:120px;accent-color:var(--red);height:44px}
+label.sw{display:flex;align-items:center;gap:8px;min-height:44px}
+label.sw input{width:22px;height:22px;accent-color:var(--red)}
+input[type=file]{font-size:15px;max-width:100%}
+textarea{width:100%;min-height:140px;font:16px/1.6 Inter,sans-serif;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);resize:vertical}
+.lyrics-big{font-size:24px;line-height:1.5;min-height:50vh}
+.take{border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:10px}
+.take canvas{width:100%;height:56px;display:block;margin:8px 0}
+.take input{font:600 16px Inter,sans-serif;border:0;background:none;color:var(--ink);width:100%;padding:4px 0}
+.empty{color:var(--mute);padding:10px 0}
+.tip{background:var(--bg);border-radius:10px;padding:10px 12px;font-size:14px;color:var(--mute);margin-top:12px}
+#msg{min-height:22px;font-size:14px;color:var(--red);margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><h1>Vocal Booth</h1><span class="onair" id="onair">ON AIR</span></header>
+
+<section class="card booth">
+  <button class="rec" id="rec" disabled>REC</button>
+  <div>
+    <div class="clock" id="clock">0:00.0</div>
+    <div class="meter"><i id="lvl"></i></div>
+    <div class="small" id="lvlText">Turn on your mic to see the level</div>
+    <div class="row">
+      <button class="primary" id="micBtn">Turn on mic</button>
+      <select id="micSel" aria-label="Microphone" hidden></select>
+    </div>
+    <div id="msg" role="status"></div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Backing track</h2>
+  <input type="file" id="beatFile" accept="audio/*,video/*" aria-label="Choose backing track">
+  <div class="small" id="beatInfo">Optional. Pick a minus-one / karaoke track to sing over.</div>
+  <div class="row"><span class="small">Beat volume</span><input type="range" id="beatVol" min="0" max="1" step="0.01" value="0.7" aria-label="Beat volume"></div>
+  <div class="row">
+    <label class="sw"><input type="checkbox" id="countIn" checked> Count-in (4 clicks)</label>
+    <label class="sw"><input type="checkbox" id="monitor"> Hear my voice in earphones</label>
+  </div>
+  <div class="tip">Wear earphones so the beat doesn't leak into the mic. Keep the phone a hand-span from your mouth. When the meter hits red, step back a little.</div>
+</section>
+
+<section class="card">
+  <div class="row" style="justify-content:space-between;margin:0 0 10px"><h2 style="margin:0">Lyrics</h2><button id="bigBtn">Big text</button></div>
+  <textarea id="lyrics" placeholder="Paste your lyrics here so you can read them while you sing"></textarea>
+</section>
+
+<section class="card">
+  <h2>Takes</h2>
+  <div id="takes"><div class="empty">No takes yet. Press REC and sing.</div></div>
+  <div class="tip">Takes are lost if you close or refresh this page. Save the one you like, then send the WAV file to Claude in the chat for mixing and mastering.</div>
+</section>
+</div>
+
+<script>
+{
+const $=id=>document.getElementById(id);
+let ctx,stream,src,analyser,proc,monGain,beatBuf=null,beatGain,beatNode=null;
+let recording=false,chunks=[],lead=0,recStart=0,tick=null,takes=[],takeNo=0,playing=null,clipHold=0;
+const fmt=s=>{s=Math.max(0,s);const m=Math.floor(s/60);return m+':'+(s%60).toFixed(1).padStart(4,'0')};
+const say=t=>$('msg').textContent=t;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+try{$('lyrics').value=localStorage.getItem('vb-lyrics')||''}catch(e){}
+$('lyrics').addEventListener('input',()=>{try{localStorage.setItem('vb-lyrics',$('lyrics').value)}catch(e){}});
+$('bigBtn').addEventListener('click',()=>{const on=$('lyrics').classList.toggle('lyrics-big');$('bigBtn').textContent=on?'Normal text':'Big text'});
+
+async function ensureCtx(){
+  if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});
+    beatGain=ctx.createGain();beatGain.gain.value=+$('beatVol').value;beatGain.connect(ctx.destination)}
+  if(ctx.state!=='running')await ctx.resume();
+}
+
+async function startMic(id){
+  await ensureCtx();
+  if(stream)stream.getTracks().forEach(t=>t.stop());
+  if(src)src.disconnect();
+  stream=await navigator.mediaDevices.getUserMedia({audio:{deviceId:id?{exact:id}:undefined,echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:1}});
+  src=ctx.createMediaStreamSource(stream);
+  if(!analyser){
+    analyser=ctx.createAnalyser();analyser.fftSize=1024;
+    proc=ctx.createScriptProcessor(4096,1,1);
+    const sink=ctx.createGain();sink.gain.value=0;proc.connect(sink);sink.connect(ctx.destination);
+    proc.onaudioprocess=e=>{if(recording)chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)))};
+    monGain=ctx.createGain();monGain.gain.value=$('monitor').checked?1:0;monGain.connect(ctx.destination);
+    meterLoop();
+  }
+  src.connect(analyser);src.connect(proc);src.connect(monGain);
+}
+
+$('micBtn').addEventListener('click',async()=>{
+  say('');
+  if(!navigator.mediaDevices?.getUserMedia){say('This browser cannot use the microphone. Open this page in Chrome or Safari.');return}
+  try{
+    await startMic();
+    const devs=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='audioinput');
+    const sel=$('micSel');sel.innerHTML=devs.map((d,i)=>`<option value="${esc(d.deviceId)}">${esc(d.label||'Microphone '+(i+1))}</option>`).join('');
+    sel.hidden=devs.length<2;
+    $('micBtn').hidden=true;$('rec').disabled=false;
+  }catch(e){say('Microphone blocked. Allow mic access in your browser settings, then try again.')}
+});
+$('micSel').addEventListener('change',e=>startMic(e.target.value).catch(()=>say('Could not switch microphone.')));
+$('monitor').addEventListener('change',e=>{if(monGain)monGain.gain.value=e.target.checked?1:0});
+$('beatVol').addEventListener('input',e=>{if(beatGain)beatGain.gain.value=+e.target.value});
+
+$('beatFile').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;
+  $('beatInfo').textContent='Loading…';
+  try{await ensureCtx();beatBuf=await ctx.decodeAudioData(await f.arrayBuffer());
+    $('beatInfo').textContent=f.name+' · '+fmt(beatBuf.duration)}
+  catch(err){beatBuf=null;$('beatInfo').textContent='Could not read that file. Try an MP3, M4A or WAV.'}
+});
+
+function meterLoop(){
+  const d=new Float32Array(analyser.fftSize);
+  const step=()=>{
+    analyser.getFloatTimeDomainData(d);let p=0;for(const v of d)p=Math.max(p,Math.abs(v));
+    const db=p>0?20*Math.log10(p):-60;const pct=Math.max(0,Math.min(100,(db+60)/60*100));
+    $('lvl').style.width=pct+'%';
+    if(p>0.97)clipHold=60;
+    $('lvlText').textContent=clipHold>0?'Too loud! Step back from the mic':db<-40?'Very quiet, come a bit closer':'Level OK';
+    if(clipHold>0)clipHold--;
+    if(recording)$('clock').textContent=fmt(ctx.currentTime-recStart-lead);
+    requestAnimationFrame(step)};
+  step();
+}
+
+function click(t,hi){const o=ctx.createOscillator(),g=ctx.createGain();o.frequency.value=hi?1600:1000;
+  g.gain.setValueAtTime(0.4,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.08);o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+0.1)}
+
+function startRec(){
+  stopPlay();chunks=[];recording=true;recStart=ctx.currentTime;
+  const ci=$('countIn').checked?4*0.6:0;lead=ci+0.15;
+  for(let i=0;i<(ci?4:0);i++)click(recStart+0.15+i*0.6,i===0);
+  if(beatBuf){beatNode=ctx.createBufferSource();beatNode.buffer=beatBuf;beatNode.connect(beatGain);beatNode.start(recStart+lead);
+    beatNode.onended=()=>{if(recording)stopRec()}}
+  $('rec').textContent='STOP';$('rec').classList.add('on');$('onair').classList.add('live');
+}
+function stopRec(){
+  recording=false;
+  if(beatNode){beatNode.onended=null;try{beatNode.stop()}catch(e){}beatNode=null}
+  $('rec').textContent='REC';$('rec').classList.remove('on');$('onair').classList.remove('live');
+  let n=0;for(const c of chunks)n+=c.length;const all=new Float32Array(n);let o=0;for(const c of chunks){all.set(c,o);o+=c.length}
+  const cut=Math.min(all.length,Math.round(lead*ctx.sampleRate));const pcm=all.slice(cut);
+  if(pcm.length<ctx.sampleRate*0.5){say('That take was too short.');return}
+  takeNo++;takes.unshift({id:takeNo,name:'Take '+takeNo,pcm,rate:ctx.sampleRate,withBeat:!!beatBuf});
+  say('');render();
+}
+$('rec').addEventListener('click',async()=>{await ensureCtx();recording?stopRec():startRec()});
+
+function stopPlay(){if(playing){playing.forEach(n=>{try{n.stop()}catch(e){}});playing=null;render()}}
+function play(t){
+  stopPlay();const b=ctx.createBuffer(1,t.pcm.length,t.rate);b.copyToChannel(t.pcm,0);
+  const v=ctx.createBufferSource();v.buffer=b;v.connect(ctx.destination);const at=ctx.currentTime+0.05;v.start(at);playing=[v];
+  if(t.withBeat&&beatBuf){const s=ctx.createBufferSource();s.buffer=beatBuf;s.connect(beatGain);s.start(at);playing.push(s)}
+  playing.id=t.id;v.onended=stopPlay;render();
+}
+
+function wav(t){
+  const n=t.pcm.length,buf=new ArrayBuffer(44+n*2),v=new DataView(buf);
+  const w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+  w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+  v.setUint32(24,t.rate,true);v.setUint32(28,t.rate*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);
+  for(let i=0;i<n;i++){const s=Math.max(-1,Math.min(1,t.pcm[i]));v.setInt16(44+i*2,s<0?s*0x8000:s*0x7fff,true)}
+  return new Blob([buf],{type:'audio/wav'});
+}
+async function save(t){
+  const name=(t.name.replace(/[^\w\- ]+/g,'').trim()||'take')+'.wav';
+  const file=new File([wav(t)],name,{type:'audio/wav'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:name});return}catch(e){if(e.name==='AbortError')return}}
+  const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),10000);
+}
+
+function drawWave(cv,pcm){
+  const W=cv.clientWidth,H=cv.clientHeight,r=devicePixelRatio||1;cv.width=W*r;cv.height=H*r;
+  const g=cv.getContext('2d');g.scale(r,r);g.fillStyle=getComputedStyle(document.body).color;
+  const step=Math.max(1,Math.floor(pcm.length/W));
+  for(let x=0;x<W;x++){let p=0;for(let i=x*step,e=i+step;i<e&&i<pcm.length;i++)p=Math.max(p,Math.abs(pcm[i]));
+    const h=Math.max(1,p*H);g.globalAlpha=p>0.97?1:0.75;if(p>0.97)g.fillStyle='#e8323f';g.fillRect(x,(H-h)/2,1,h);g.fillStyle=getComputedStyle(document.body).color}
+}
+
+function render(){
+  const box=$('takes');
+  if(!takes.length){box.innerHTML='<div class="empty">No takes yet. Press REC and sing.</div>';return}
+  box.innerHTML=takes.map(t=>`<div class="take" data-id="${t.id}">
+    <input value="${esc(t.name)}" aria-label="Take name" data-act="name">
+    <div class="small">${fmt(t.pcm.length/t.rate)}${t.withBeat?' · with backing track':''}</div>
+    <canvas></canvas>
+    <div class="row"><button data-act="play">${playing&&playing.id===t.id?'Stop':'Play'}</button>
+    <button class="primary" data-act="save">Save WAV</button><button data-act="del">Delete</button></div></div>`).join('');
+  box.querySelectorAll('.take').forEach(el=>{const t=takes.find(x=>x.id==el.dataset.id);requestAnimationFrame(()=>drawWave(el.querySelector('canvas'),t.pcm))});
+}
+$('takes').addEventListener('click',async e=>{
+  const b=e.target.closest('button');if(!b)return;const t=takes.find(x=>x.id==b.closest('.take').dataset.id);
+  await ensureCtx();
+  if(b.dataset.act==='play')(playing&&playing.id===t.id)?stopPlay():play(t);
+  if(b.dataset.act==='save')save(t);
+  if(b.dataset.act==='del'){if(playing&&playing.id===t.id)stopPlay();takes=takes.filter(x=>x!==t);render()}
+});
+$('takes').addEventListener('input',e=>{if(e.target.dataset.act==='name'){takes.find(x=>x.id==e.target.closest('.take').dataset.id).name=e.target.value}});
+addEventListener('beforeunload',e=>{if(takes.length){e.preventDefault();e.returnValue=''}});
+}
+</script>
+</body>
+</html>
